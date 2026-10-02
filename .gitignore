@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+
+# Pruebas y reportes
+test-results/
+playwright-report/
+blob-report/
+.nyc_output/
+
+# Binarios y compilados
+bin/
+dist/
+*.exe
+
+# Carpetas temporales de pruebas
+tests/temp/
+temp/
+
+# Archivos de entorno y logs
+*.log
+.env
+.env.local
+
+# Editores y herramientas
+.vscode/
+.idea/
+.gemini/
+Thumbs.db
+[Dd]esktop.ini
