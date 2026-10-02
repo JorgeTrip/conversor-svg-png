@@ -6,7 +6,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test",
+    "test:ps1": "powershell -ExecutionPolicy Bypass -File ./tests/ConversorSvg.Tests.ps1",
+    "compilar": "pwsh -ExecutionPolicy Bypass -File ./Compilar-Ejecutable.ps1",
     "auditar": "node C:\\Users\\Jorge\\.gemini\\tools\\auditarProyecto.mjs ."
   },
   "devDependencies": {

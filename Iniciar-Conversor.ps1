@@ -1,23 +1,34 @@
-﻿<#
+<#
 .SYNOPSIS
     Script principal interactivo para la conversión de archivos SVG a PNG con ImageMagick.
 #>
 
 [CmdletBinding()]
 param(
-    [string]$RutaCarpeta = $PSScriptRoot
+    [string]$RutaCarpeta = ""
 )
+
+# Resolución de carpeta de trabajo
+if ([string]::IsNullOrWhiteSpace($RutaCarpeta)) {
+    $RutaCarpeta = if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) { $PSScriptRoot } else { (Get-Location).Path }
+}
 
 # Configuración de codificación para caracteres en español
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $Host.UI.RawUI.WindowTitle = "Conversor SVG a PNG (300 DPI) - ImageMagick"
 
-# Carga de módulos modulares
-$dirModulos = Join-Path $PSScriptRoot "modulos"
-. (Join-Path $dirModulos "Validar-Entorno.ps1")
-. (Join-Path $dirModulos "Buscar-ArchivosSvg.ps1")
-. (Join-Path $dirModulos "Interpretar-Seleccion.ps1")
-. (Join-Path $dirModulos "Ejecutar-ConversionSvg.ps1")
+# Carga de módulos en entorno modular si existe el directorio
+$dirModulos = Join-Path $RutaCarpeta "modulos"
+if (-not (Test-Path -LiteralPath $dirModulos) -and -not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+    $dirModulos = Join-Path $PSScriptRoot "modulos"
+}
+
+if (Test-Path -LiteralPath $dirModulos) {
+    . (Join-Path $dirModulos "Validar-Entorno.ps1")
+    . (Join-Path $dirModulos "Buscar-ArchivosSvg.ps1")
+    . (Join-Path $dirModulos "Interpretar-Seleccion.ps1")
+    . (Join-Path $dirModulos "Ejecutar-ConversionSvg.ps1")
+}
 
 Clear-Host
 Write-Host "==========================================================" -ForegroundColor Cyan

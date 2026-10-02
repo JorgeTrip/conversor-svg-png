@@ -1,0 +1,107 @@
+name: CI/CD - Compilación, Pruebas y Release
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: windows-latest
+
+    steps:
+      - name: Clonar repositorio completo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias npm
+        run: npm ci
+
+      - name: Ejecutar pruebas unitarias de PowerShell
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File .\tests\ConversorSvg.Tests.ps1
+
+      - name: Calcular versión semántica y changelog
+        id: versionado
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $versionActual = [version]$package.version
+          $mensajeCommit = @"
+          ${{ github.event.head_commit.message }}
+          "@.Trim()
+
+          Write-Host "Versión actual: $versionActual"
+          Write-Host "Mensaje de commit: $mensajeCommit"
+
+          $major = $versionActual.Major
+          $minor = $versionActual.Minor
+          $patch = $versionActual.Build
+          if ($patch -lt 0) { $patch = 0 }
+
+          if ($mensajeCommit -match "(?i)BREAKING:") {
+              $major++
+              $minor = 0
+              $patch = 0
+          } elseif ($mensajeCommit -match "(?i)feat:|\uD83D\uDE80") {
+              $minor++
+              $patch = 0
+          } else {
+              $patch++
+          }
+
+          $nuevaVersion = "$major.$minor.$patch"
+          Write-Host "Nueva versión calculada: $nuevaVersion"
+
+          $package.version = $nuevaVersion
+          $package | ConvertTo-Json -Depth 10 | Set-Content package.json -Encoding UTF8
+
+          # Generar historial git-log.txt
+          git log --pretty=format:"* %ad: %s (%h)" --date=short -n 50 > git-log.txt
+
+          echo "version=$nuevaVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Instalar módulo ps2exe
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module ps2exe -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Compilar ejecutable único ConversorSVG.exe
+        shell: pwsh
+        run: |
+          pwsh -ExecutionPolicy Bypass -File .\Compilar-Ejecutable.ps1 -Version "${{ steps.versionado.outputs.version }}" -Destino "dist/ConversorSVG.exe"
+
+      - name: Crear Release en GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.versionado.outputs.version }}"
+          name: "Conversor SVG a PNG v${{ steps.versionado.outputs.version }}"
+          body: |
+            ### 🚀 Nueva versión v${{ steps.versionado.outputs.version }}
+            - **Cambio:** ${{ github.event.head_commit.message }}
+            - **Descarga directa:** [ConversorSVG.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.versionado.outputs.version }}/ConversorSVG.exe)
+          files: |
+            dist/ConversorSVG.exe
+            git-log.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sincronizar versión y changelog en repositorio
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json git-log.txt
+          git commit -m "chore: Se actualiza version a v${{ steps.versionado.outputs.version }} [skip ci]"
+          git push
