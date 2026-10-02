@@ -1,0 +1,2 @@
+* 2026-10-02: feat: Se implementa pipeline de CI/CD y compilación a ejecutable único distribuible (70b0a6c)
+* 2026-10-02: feat: Se inicializa repositorio del conversor interactivo SVG a PNG (4983959)
