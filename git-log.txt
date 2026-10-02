@@ -1,2 +1,4 @@
+* 2026-10-02: fix: Se corrige compilacion de ejecutable y compatibilidad de inicio (88e308e)
+* 2026-10-02: chore: Se actualiza version a v0.2.0 [skip ci] (fadd24f)
 * 2026-10-02: feat: Se implementa pipeline de CI/CD y compilación a ejecutable único distribuible (70b0a6c)
 * 2026-10-02: feat: Se inicializa repositorio del conversor interactivo SVG a PNG (4983959)
