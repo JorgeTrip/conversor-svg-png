@@ -1,10 +1,11 @@
-<#
+﻿<#
 .SYNOPSIS
     Script principal interactivo para la conversión de archivos SVG a PNG con ImageMagick.
 #>
 
 [CmdletBinding()]
 param(
+    [Parameter(ValueFromPipeline = $true)]
     [string]$RutaCarpeta = ""
 )
 
@@ -15,8 +16,9 @@ if ([string]::IsNullOrWhiteSpace($RutaCarpeta)) {
 
 # Configuración de codificación para caracteres en español
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$Host.UI.RawUI.WindowTitle = "Conversor SVG a PNG (300 DPI) - ImageMagick"
+try { $Host.UI.RawUI.WindowTitle = "Conversor SVG a PNG (300 DPI) - ImageMagick" } catch { }
 
+# [INICIO_MODULOS]
 # Carga de módulos en entorno modular si existe el directorio
 $dirModulos = Join-Path $RutaCarpeta "modulos"
 if (-not (Test-Path -LiteralPath $dirModulos) -and -not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
@@ -29,8 +31,30 @@ if (Test-Path -LiteralPath $dirModulos) {
     . (Join-Path $dirModulos "Interpretar-Seleccion.ps1")
     . (Join-Path $dirModulos "Ejecutar-ConversionSvg.ps1")
 }
+# [FIN_MODULOS]
 
-Clear-Host
+<#
+.SYNOPSIS
+    Muestra el arte ASCII representativo del conversor junto con la firma del autor.
+#>
+function Mostrar-ArteAscii {
+    $lineas = @(
+        @{ Svg = "   ____  __     ______  "; Flecha = "         "; Png = "   ____  _   _  ____  " },
+        @{ Svg = "  / ___| \ \   / / ___| "; Flecha = "  ====>  "; Png = "  |  _ \| \ | |/ ___| " },
+        @{ Svg = "  \___ \  \ \ / / |  _  "; Flecha = "         "; Png = "  | |_) |  \| | |  _  " },
+        @{ Svg = "   ___) |  \ V / | |_| |"; Flecha = "         "; Png = "  |  __/| |\  | |_| | " },
+        @{ Svg = "  |____/    \_/   \____|"; Flecha = "         "; Png = "  |_|   |_| \_|\____| " }
+    )
+    foreach ($l in $lineas) {
+        Write-Host $l.Svg -NoNewline -ForegroundColor Cyan
+        Write-Host $l.Flecha -NoNewline -ForegroundColor DarkGray
+        Write-Host $l.Png -ForegroundColor Green
+    }
+    Write-Host (" " * 43 + "by J.O.T.`n") -ForegroundColor DarkGray
+}
+
+try { Clear-Host } catch { }
+Mostrar-ArteAscii
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "       CONVERSOR DE ARCHIVOS SVG A PNG (ALTA RESOLUCIÓN)  " -ForegroundColor White
 Write-Host "                   Densidad fijada: 300 DPI               " -ForegroundColor DarkGray

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Script de compilación que genera un archivo ejecutable único (.exe) a partir de los scripts de PowerShell.
 .DESCRIPTION
@@ -37,15 +37,23 @@ if (-not [string]::IsNullOrWhiteSpace($carpetaSalida) -and -not (Test-Path -Lite
 $rutaTemporal = Join-Path $env:TEMP ("ConversorSVG_compilacion_" + [guid]::NewGuid().ToString() + ".ps1")
 $directorioRaiz = $PSScriptRoot
 
+# Resolución automática de versión desde package.json si aplica
+if ([string]::IsNullOrWhiteSpace($Version) -or $Version -eq "0.1.0") {
+    $rutaPkg = Join-Path $PSScriptRoot "package.json"
+    if (Test-Path -LiteralPath $rutaPkg) {
+        try {
+            $pkgJson = Get-Content -LiteralPath $rutaPkg -Raw | ConvertFrom-Json
+            if (-not [string]::IsNullOrWhiteSpace($pkgJson.version)) {
+                $Version = $pkgJson.version
+            }
+        } catch { }
+    }
+}
+
 try {
     Write-Host "Unificando módulos en archivo temporal..." -ForegroundColor DarkGray
     
-    # 3. Concatenar cabecera, módulos y script principal
-    $contenidoTotal = [System.Text.StringBuilder]::new()
-    [void]$contenidoTotal.AppendLine("# Generado automáticamente para empaquetado v$Version")
-    [void]$contenidoTotal.AppendLine("# Fecha: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
-    [void]$contenidoTotal.AppendLine()
-
+    # 3. Concatenar módulos e inyectarlos preservando param() en la cabecera del script
     $modulos = @(
         (Join-Path $directorioRaiz "modulos/Validar-Entorno.ps1"),
         (Join-Path $directorioRaiz "modulos/Buscar-ArchivosSvg.ps1"),
@@ -53,21 +61,34 @@ try {
         (Join-Path $directorioRaiz "modulos/Ejecutar-ConversionSvg.ps1")
     )
 
+    $bloqueModulos = [System.Text.StringBuilder]::new()
+    [void]$bloqueModulos.AppendLine("# --- MODULOS INTEGRADOS PARA EJECUTABLE AUTONOMO ---")
     foreach ($archivoModulo in $modulos) {
         if (-not (Test-Path -LiteralPath $archivoModulo)) {
             throw "No se encontró el módulo requerido: $archivoModulo"
         }
         $lineas = Get-Content -LiteralPath $archivoModulo -Raw -Encoding UTF8
-        [void]$contenidoTotal.AppendLine($lineas)
-        [void]$contenidoTotal.AppendLine()
+        [void]$bloqueModulos.AppendLine($lineas)
+        [void]$bloqueModulos.AppendLine()
     }
 
-    # Agregar el script principal
     $rutaPrincipal = Join-Path $directorioRaiz "Iniciar-Conversor.ps1"
-    $lineasPrincipal = Get-Content -LiteralPath $rutaPrincipal -Raw -Encoding UTF8
-    [void]$contenidoTotal.AppendLine($lineasPrincipal)
+    $textoPrincipal = Get-Content -LiteralPath $rutaPrincipal -Raw -Encoding UTF8
 
-    [System.IO.File]::WriteAllText($rutaTemporal, $contenidoTotal.ToString(), [System.Text.Encoding]::UTF8)
+    $marcadorInicio = "# [INICIO_MODULOS]"
+    $marcadorFin = "# [FIN_MODULOS]"
+    $idxInicio = $textoPrincipal.IndexOf($marcadorInicio)
+    $idxFin = $textoPrincipal.IndexOf($marcadorFin)
+
+    if ($idxInicio -ge 0 -and $idxFin -ge 0) {
+        $antes = $textoPrincipal.Substring(0, $idxInicio)
+        $despues = $textoPrincipal.Substring($idxFin + $marcadorFin.Length)
+        $contenidoFinal = $antes + $bloqueModulos.ToString() + $despues
+    } else {
+        $contenidoFinal = $bloqueModulos.ToString() + "`n" + $textoPrincipal
+    }
+
+    [System.IO.File]::WriteAllText($rutaTemporal, $contenidoFinal, [System.Text.Encoding]::UTF8)
 
     # 4. Invocar compilador ps2exe
     Write-Host "Compilando binario con ps2exe (Versión: $Version)..." -ForegroundColor Cyan

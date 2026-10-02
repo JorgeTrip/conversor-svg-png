@@ -8,13 +8,21 @@ echo   Iniciando Conversor Interactivo de SVG a PNG (300 DPI)
 echo ==========================================================
 echo.
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\Iniciar-Conversor.ps1"
+set "PS_CMD=powershell.exe"
+where pwsh.exe >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    set "PS_CMD=pwsh.exe"
+)
 
-if %ERRORLEVEL% neq 0 (
+"%PS_CMD%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0Iniciar-Conversor.ps1"
+set "CODIGO_SALIDA=%ERRORLEVEL%"
+
+if %CODIGO_SALIDA% neq 0 (
     echo.
-    echo Ocurrio un error durante la ejecucion (Codigo: %ERRORLEVEL%).
+    echo Ocurrio un error durante la ejecucion [Codigo: %CODIGO_SALIDA%].
 )
 
 echo.
 echo Presione cualquier tecla para cerrar esta ventana...
 pause >nul
+
